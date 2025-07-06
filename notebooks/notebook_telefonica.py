@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 
+from pymongo import MongoClient
+from datetime import datetime
+
 # Configuración de Spark para ejecución local
 conf = SparkConf()
 conf.setMaster("local[*]")
@@ -46,3 +49,27 @@ plt.xlabel("Edad")
 plt.ylabel("Cantidad")
 plt.tight_layout()
 plt.show()
+
+# Integración con MongoDB
+
+# 1. Filtrar usuarios que han hecho churn
+churn_df = df.filter(df['churn'] == True)
+
+# 2. Convertir a Pandas
+churn_pd = churn_df.toPandas()
+
+# 3. Convertir 'join_date' a tipo datetime.datetime
+churn_pd['join_date'] = churn_pd['join_date'].apply(
+    lambda d: datetime(d.year, d.month, d.day) if not pd.isnull(d) else None
+)
+
+# 4. Conectarse a MongoDB
+client = MongoClient("mongodb://localhost:27017/")
+db = client["telefonica"]
+collection = db["clientes_churn"]
+
+# 5. Insertar en MongoDB
+collection.delete_many({})  # Limpiar colección si ya existía
+collection.insert_many(churn_pd.to_dict("records"))
+
+print("Datos de clientes con churn almacenados en MongoDB.")
